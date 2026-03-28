@@ -4,14 +4,14 @@ export default function Landing() {
   const { signIn } = useApp()
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white flex flex-col items-center justify-center px-6 py-12">
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white flex flex-col items-center justify-center px-6 py-8">
       <div className="text-center max-w-sm w-full">
-        <div className="text-6xl mb-4">🍽️</div>
+        <div className="text-6xl mb-3">🍽️</div>
         <h1 className="text-3xl font-bold text-stone-900 mb-2">Rasoi</h1>
         <p className="text-stone-500 text-lg mb-2">Never stare blankly at</p>
-        <p className="text-stone-700 text-lg font-medium mb-10">"What should we cook?" again.</p>
+        <p className="text-stone-700 text-lg font-medium mb-7">"What should we cook?" again.</p>
 
-        <div className="space-y-4 mb-10">
+        <div className="space-y-4 mb-7">
           {[
             { emoji: '👨‍👩‍👧‍👦', text: 'Personalised for your household' },
             { emoji: '⚡', text: 'A meal decision in under 30 seconds' },
