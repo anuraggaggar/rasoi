@@ -3,7 +3,7 @@ import { useApp } from '../contexts/AppContext'
 import { supabase } from '../lib/supabase'
 import { ChevronRight, Plus, X } from 'lucide-react'
 
-const DIETARY_TAGS = ['Lactose-free', 'Gluten-free', 'Nut allergy']
+const DIETARY_TAGS = ['Vegetarian', 'Lactose-free', 'Gluten-free', 'Nut allergy']
 
 function ageGroup(age) {
   if (age <= 12) return 'child'
