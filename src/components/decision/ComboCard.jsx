@@ -13,7 +13,13 @@ const PREP_COLORS = {
   elaborate: 'bg-stone-100 text-stone-600',
 }
 
-export default function ComboCard({ combo, onSelect }) {
+const SLOT_LABEL = {
+  breakfast: "We're making this for breakfast 🌅",
+  lunch:     "We're cooking this for lunch ☀️",
+  dinner:    "We're cooking this tonight 🌙",
+}
+
+export default function ComboCard({ combo, onSelect, mealSlot = 'dinner' }) {
   const navigate = useNavigate()
 
   return (
@@ -62,7 +68,7 @@ export default function ComboCard({ combo, onSelect }) {
           onClick={e => { e.stopPropagation(); onSelect(combo) }}
           className="mt-3 w-full bg-orange-500 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-orange-600 active:bg-orange-700 transition-colors"
         >
-          We're cooking this tonight 🎉
+          {SLOT_LABEL[mealSlot]}
         </button>
       )}
     </div>

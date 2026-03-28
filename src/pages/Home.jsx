@@ -179,6 +179,7 @@ export default function Home() {
                       <ComboCard
                         key={combo.id}
                         combo={combo}
+                        mealSlot={mealSlot}
                         onSelect={() => setLogCombo(combo)}
                       />
                     ))}
