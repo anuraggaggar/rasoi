@@ -14,6 +14,7 @@ export function AppProvider({ children }) {
   const [deletedItems, setDeletedItems] = useState(new Set())
   const [recentLogs, setRecentLogs] = useState([])
   const [loading, setLoading] = useState(true)
+  const [householdChecked, setHouseholdChecked] = useState(false)
 
   // Load library (dishes + combos) — runs once, no auth needed after
   const loadLibrary = useCallback(async () => {
@@ -98,6 +99,7 @@ export function AppProvider({ children }) {
       .eq('user_id', userId)
       .single()
     setHousehold(data || null)
+    setHouseholdChecked(true)
     if (data) await loadHouseholdData(data.id)
   }, [loadHouseholdData])
 
@@ -118,7 +120,7 @@ export function AppProvider({ children }) {
             loadLibrary(),
             session?.user ? loadHousehold(session.user.id) : Promise.resolve(),
           ])
-        })(), 6000)
+        })(), 3000)
       } catch (err) {
         console.error('Rasoi init error:', err)
       } finally {
@@ -190,7 +192,7 @@ export function AppProvider({ children }) {
   })
 
   const value = {
-    user, household, familyMembers, loading,
+    user, household, householdChecked, familyMembers, loading,
     dishes, combos: enrichedCombos,
     preferences, frequencies, deletedItems, recentLogs,
     signIn, signOut,

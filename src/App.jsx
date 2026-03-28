@@ -11,9 +11,11 @@ import Settings from './pages/Settings'
 import Layout from './components/Layout'
 
 function AppRoutes() {
-  const { user, household, loading } = useApp()
+  const { user, household, householdChecked, loading } = useApp()
 
-  if (loading) {
+  // Show spinner while loading, or while we have a user but haven't confirmed household status yet
+  // (prevents falsely routing to Onboarding when init timed out mid-load)
+  if (loading || (user && !householdChecked)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-orange-50">
         <div className="text-center">

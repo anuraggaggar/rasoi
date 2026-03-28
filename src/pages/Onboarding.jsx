@@ -104,11 +104,16 @@ export default function Onboarding() {
   const finish = async () => {
     setSaving(true)
     setError('')
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out. Please check your connection and try again.')), 10000)
+    )
     try {
-      const { data: hh, error: hhErr } = await supabase
-        .from('households')
-        .insert({ user_id: user.id, name: householdName.trim(), dietary_profile: dietaryProfile })
-        .select().single()
+      const { data: hh, error: hhErr } = await Promise.race([
+        supabase.from('households')
+          .insert({ user_id: user.id, name: householdName.trim(), dietary_profile: dietaryProfile })
+          .select().single(),
+        timeout,
+      ])
       if (hhErr) throw hhErr
 
       const memberRows = members.map(m => ({
@@ -118,8 +123,10 @@ export default function Onboarding() {
         age_group: ageGroup(parseInt(m.age)),
         dietary_tags: m.dietary_tags.map(t => t.toLowerCase().replace(' ', '_')),
       }))
-      const { data: savedMembers, error: mErr } = await supabase
-        .from('family_members').insert(memberRows).select()
+      const { data: savedMembers, error: mErr } = await Promise.race([
+        supabase.from('family_members').insert(memberRows).select(),
+        timeout,
+      ])
       if (mErr) throw mErr
 
       setHousehold(hh)
