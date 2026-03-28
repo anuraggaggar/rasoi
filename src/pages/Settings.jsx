@@ -180,10 +180,13 @@ function DeletedSection({ deletedItems, setDeletedItems, household, onBack }) {
   )
 }
 
+const DIETARY_TAGS = ['Vegetarian', 'Lactose-free', 'Gluten-free', 'Nut allergy']
+
 function MembersSection({ familyMembers, household, setFamilyMembers, onBack }) {
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
   const [newAge, setNewAge] = useState('')
+  const [newTags, setNewTags] = useState([])
 
   function ageGroup(age) {
     if (age <= 12) return 'child'
@@ -192,6 +195,10 @@ function MembersSection({ familyMembers, household, setFamilyMembers, onBack }) 
     return 'senior'
   }
 
+  const toggleTag = (tag) => setNewTags(prev =>
+    prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+  )
+
   const addMember = async () => {
     const age = parseInt(newAge)
     const { data } = await supabase.from('family_members').insert({
@@ -199,11 +206,11 @@ function MembersSection({ familyMembers, household, setFamilyMembers, onBack }) 
       name: newName.trim(),
       age,
       age_group: ageGroup(age),
-      dietary_tags: [],
+      dietary_tags: newTags.map(t => t.toLowerCase().replace(' ', '_')),
     }).select().single()
     if (data) {
       setFamilyMembers(prev => [...prev, data])
-      setNewName(''); setNewAge(''); setAdding(false)
+      setNewName(''); setNewAge(''); setNewTags([]); setAdding(false)
     }
   }
 
@@ -227,8 +234,23 @@ function MembersSection({ familyMembers, household, setFamilyMembers, onBack }) 
             placeholder="Name" value={newName} onChange={e => setNewName(e.target.value)} />
           <input type="number" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400"
             placeholder="Age" value={newAge} onChange={e => setNewAge(e.target.value)} />
+          <div>
+            <p className="text-xs font-medium text-stone-600 mb-1.5">Dietary needs</p>
+            <div className="flex flex-wrap gap-2">
+              {DIETARY_TAGS.map(tag => (
+                <button key={tag} type="button" onClick={() => toggleTag(tag)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    newTags.includes(tag)
+                      ? 'bg-orange-100 border-orange-300 text-orange-700'
+                      : 'bg-white border-stone-200 text-stone-500'
+                  }`}>
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="flex gap-2">
-            <button onClick={() => setAdding(false)} className="flex-1 py-2 border border-stone-200 rounded-lg text-sm text-stone-500">Cancel</button>
+            <button onClick={() => { setAdding(false); setNewTags([]) }} className="flex-1 py-2 border border-stone-200 rounded-lg text-sm text-stone-500">Cancel</button>
             <button onClick={addMember} disabled={!newName.trim() || !newAge}
               className="flex-1 py-2 bg-orange-500 disabled:bg-stone-200 text-white rounded-lg text-sm font-medium">Add</button>
           </div>
