@@ -104,19 +104,14 @@ export function AppProvider({ children }) {
   useEffect(() => {
     let authSubscription = null
 
-    const withTimeout = (promise, ms) => Promise.race([
-      promise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error(`init timed out after ${ms}ms`)), ms)),
-    ])
-
     const init = async () => {
       try {
-        await withTimeout((async () => {
-          const { data: { session } } = await supabase.auth.getSession()
-          setUser(session?.user ?? null)
-          await loadLibrary()
-          if (session?.user) await loadHousehold(session.user.id)
-        })(), 4000)
+        const [{ data: { session } }] = await Promise.all([
+          supabase.auth.getSession(),
+          loadLibrary(),
+        ])
+        setUser(session?.user ?? null)
+        if (session?.user) await loadHousehold(session.user.id)
       } catch (err) {
         console.error('Rasoi init error:', err)
       } finally {
