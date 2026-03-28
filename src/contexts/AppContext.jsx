@@ -116,7 +116,7 @@ export function AppProvider({ children }) {
           setUser(session?.user ?? null)
           await loadLibrary()
           if (session?.user) await loadHousehold(session.user.id)
-        })(), 10000)
+        })(), 4000)
       } catch (err) {
         console.error('Rasoi init error:', err)
       } finally {
