@@ -143,6 +143,7 @@ export function AppProvider({ children }) {
         }
       } else {
         setHousehold(null)
+        setHouseholdChecked(true)
         setFamilyMembers([])
         setPreferences({})
         setFrequencies({})
