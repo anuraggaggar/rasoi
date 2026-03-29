@@ -1,10 +1,7 @@
-const CACHE = 'rasoi-v1'
-const SHELL = ['/', '/index.html']
+const CACHE = 'rasoi-v2'
 
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())
-  )
+  self.skipWaiting()
 })
 
 self.addEventListener('activate', e => {
@@ -16,19 +13,20 @@ self.addEventListener('activate', e => {
 })
 
 self.addEventListener('fetch', e => {
-  // Only cache GET requests for app shell; skip Supabase API calls
   if (e.request.method !== 'GET') return
   if (e.request.url.includes('supabase.co')) return
+  if (e.request.url.includes('googleapis.com') || e.request.url.includes('gstatic.com')) return
 
+  // Network-first: always try fresh content, fall back to cache if offline
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      const network = fetch(e.request).then(res => {
+    fetch(e.request)
+      .then(res => {
         if (res.ok && e.request.url.startsWith(self.location.origin)) {
-          caches.open(CACHE).then(c => c.put(e.request, res.clone()))
+          const cloned = res.clone()
+          caches.open(CACHE).then(c => c.put(e.request, cloned)).catch(() => {})
         }
         return res
       })
-      return cached || network
-    })
+      .catch(() => caches.match(e.request))
   )
 })

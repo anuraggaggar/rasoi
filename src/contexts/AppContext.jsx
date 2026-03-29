@@ -104,42 +104,32 @@ export function AppProvider({ children }) {
   }, [loadHouseholdData])
 
   useEffect(() => {
-    let authSubscription = null
+    let initialized = false
 
-    const init = async () => {
+    const loadData = async (userId) => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        setUser(session?.user ?? null)
-        if (!session?.user) {
-          setHouseholdChecked(true)
-          return
-        }
-        // Both run in parallel; each handles its own errors internally
         await Promise.allSettled([
           loadLibrary(),
-          loadHousehold(session.user.id),
+          userId ? loadHousehold(userId) : Promise.resolve(),
         ])
       } catch (err) {
-        console.error('Rasoi init error:', err)
-      } finally {
-        setLoading(false)
+        console.error('Rasoi data load error:', err)
       }
+      if (!userId) setHouseholdChecked(true)
     }
 
-    init()
-
+    // Use onAuthStateChange as the single source of truth.
+    // INITIAL_SESSION fires instantly from localStorage cache — no network wait.
+    // getSession() blocks on token refresh and hangs on slow connections.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // INITIAL_SESSION is handled by init() — skip to avoid duplicate loads
-      if (event === 'INITIAL_SESSION') return
       const u = session?.user ?? null
       setUser(u)
-      if (u) {
-        try {
-          await loadHousehold(u.id)
-        } catch (err) {
-          console.error('Rasoi auth change error:', err)
-        }
-      } else {
+
+      if (event === 'INITIAL_SESSION' || (event === 'SIGNED_IN' && !initialized)) {
+        initialized = true
+        await loadData(u?.id)
+        setLoading(false)
+      } else if (event === 'SIGNED_OUT') {
         setHousehold(null)
         setHouseholdChecked(true)
         setFamilyMembers([])
@@ -149,8 +139,8 @@ export function AppProvider({ children }) {
         setRecentLogs([])
       }
     })
-    authSubscription = subscription
-    return () => authSubscription.unsubscribe()
+
+    return () => subscription.unsubscribe()
   }, [loadLibrary, loadHousehold])
 
   const signIn = () =>
