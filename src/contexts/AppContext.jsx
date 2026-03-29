@@ -118,6 +118,17 @@ export function AppProvider({ children }) {
       if (!userId) setHouseholdChecked(true)
     }
 
+    // Safety net: if onAuthStateChange never fires (corrupted state, network issues),
+    // force loading=false after 5s so the app doesn't hang forever.
+    const safetyTimer = setTimeout(() => {
+      if (!initialized) {
+        console.warn('Rasoi: auth init safety timeout — forcing load complete')
+        initialized = true
+        setHouseholdChecked(true)
+        setLoading(false)
+      }
+    }, 5000)
+
     // Use onAuthStateChange as the single source of truth.
     // INITIAL_SESSION fires instantly from localStorage cache — no network wait.
     // getSession() blocks on token refresh and hangs on slow connections.
@@ -127,6 +138,7 @@ export function AppProvider({ children }) {
 
       if (event === 'INITIAL_SESSION' || (event === 'SIGNED_IN' && !initialized)) {
         initialized = true
+        clearTimeout(safetyTimer)
         await loadData(u?.id)
         setLoading(false)
       } else if (event === 'SIGNED_OUT') {
@@ -140,7 +152,10 @@ export function AppProvider({ children }) {
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(safetyTimer)
+      subscription.unsubscribe()
+    }
   }, [loadLibrary, loadHousehold])
 
   const signIn = () =>
