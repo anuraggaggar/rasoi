@@ -21,7 +21,7 @@ function LoadingScreen({ showRetry }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-orange-50 px-6">
       <div className="text-4xl mb-3">🍽️</div>
-      <div className="text-orange-600 font-medium mb-4">Loading <span style={{ fontFamily: 'Caveat, cursive' }}>Rasoi</span>…</div>
+      <div className="text-orange-600 font-medium mb-4">Loading <span style={{ fontFamily: 'Kalam, cursive' }}>Rasoi</span>…</div>
       {slow && showRetry && (
         <>
           <p className="text-stone-400 text-sm mb-4 text-center">Taking longer than usual</p>
