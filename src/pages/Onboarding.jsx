@@ -81,7 +81,7 @@ function MemberForm({ member, onChange, onRemove, canRemove }) {
 }
 
 export default function Onboarding() {
-  const { user, setHousehold, setFamilyMembers } = useApp()
+  const { user, setHousehold, setHouseholdChecked, setFamilyMembers } = useApp()
   const [step, setStep] = useState(1)
   const [householdName, setHouseholdName] = useState('')
   const [members, setMembers] = useState([
@@ -130,6 +130,7 @@ export default function Onboarding() {
       if (mErr) throw mErr
 
       setHousehold(hh)
+      setHouseholdChecked(true)
       setFamilyMembers(savedMembers)
     } catch (e) {
       setError(e.message)

@@ -192,7 +192,7 @@ export function AppProvider({ children }) {
   })
 
   const value = {
-    user, household, householdChecked, familyMembers, loading,
+    user, household, householdChecked, setHouseholdChecked, familyMembers, loading,
     dishes, combos: enrichedCombos,
     preferences, frequencies, deletedItems, recentLogs,
     signIn, signOut,
