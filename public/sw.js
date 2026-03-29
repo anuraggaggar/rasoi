@@ -1,4 +1,4 @@
-const CACHE = 'rasoi-v2'
+const CACHE = 'rasoi-v3'
 
 self.addEventListener('install', e => {
   self.skipWaiting()
@@ -21,9 +21,12 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     fetch(e.request)
       .then(res => {
-        if (res.ok && e.request.url.startsWith(self.location.origin)) {
-          const cloned = res.clone()
-          caches.open(CACHE).then(c => c.put(e.request, cloned)).catch(() => {})
+        try {
+          if (res.ok && e.request.url.startsWith(self.location.origin)) {
+            caches.open(CACHE).then(c => c.put(e.request, res.clone())).catch(() => {})
+          }
+        } catch (err) {
+          // Response body already consumed — skip caching, not critical
         }
         return res
       })
