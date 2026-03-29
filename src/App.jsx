@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AppProvider, useApp } from './contexts/AppContext'
 import Landing from './pages/Landing'
@@ -10,31 +11,28 @@ import History from './pages/History'
 import Settings from './pages/Settings'
 import Layout from './components/Layout'
 
-function LoadingScreen() {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-orange-50">
-      <div className="text-center">
-        <div className="text-4xl mb-3">🍽️</div>
-        <div className="text-orange-600 font-medium">Loading Rasoi…</div>
-      </div>
-    </div>
-  )
-}
+function LoadingScreen({ showRetry }) {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), 8000)
+    return () => clearTimeout(timer)
+  }, [])
 
-function RetryScreen() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-orange-50 px-6">
-      <div className="text-4xl mb-4">🍽️</div>
-      <p className="text-stone-700 font-medium mb-2">Slow connection</p>
-      <p className="text-stone-400 text-sm mb-6 text-center">
-        Couldn't load your data. This usually resolves on retry.
-      </p>
-      <button
-        onClick={() => window.location.reload()}
-        className="bg-orange-500 text-white px-8 py-3 rounded-xl font-semibold"
-      >
-        Retry
-      </button>
+      <div className="text-4xl mb-3">🍽️</div>
+      <div className="text-orange-600 font-medium mb-4">Loading <span style={{ fontFamily: 'Caveat, cursive' }}>Rasoi</span>…</div>
+      {slow && showRetry && (
+        <>
+          <p className="text-stone-400 text-sm mb-4 text-center">Taking longer than usual</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-orange-500 text-white px-8 py-3 rounded-xl font-semibold"
+          >
+            Retry
+          </button>
+        </>
+      )}
     </div>
   )
 }
@@ -42,13 +40,13 @@ function RetryScreen() {
 function AppRoutes() {
   const { user, household, householdChecked, loading } = useApp()
 
-  if (loading) return <LoadingScreen />
+  // Still loading auth + data
+  if (loading) return <LoadingScreen showRetry />
 
   if (!user) return <Routes><Route path="*" element={<Landing />} /></Routes>
 
-  // User is logged in but household status unknown (init timed out before loadHousehold finished)
-  // Show retry instead of Onboarding to prevent accidental re-onboarding and data loss
-  if (!householdChecked) return <RetryScreen />
+  // User is logged in but household status unknown — keep loading, show retry after 8s
+  if (!householdChecked) return <LoadingScreen showRetry />
 
   if (!household) return <Routes><Route path="*" element={<Onboarding />} /></Routes>
 
