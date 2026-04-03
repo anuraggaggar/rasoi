@@ -122,19 +122,26 @@ export function AppProvider({ children }) {
   useEffect(() => {
     let initialized = false
 
-    const loadData = async (userId) => {
-      try {
-        await Promise.allSettled([
-          loadLibrary(),
-          userId ? loadHouseholds(userId) : Promise.resolve(),
-        ])
-      } catch (err) {
-        console.error('Rasoi data load error:', err)
-      }
-      if (!userId) setHouseholdChecked(true)
+    // Wrap loadData with a timeout so Supabase slow responses can't hang the app
+    const loadData = (userId) => {
+      const dataPromise = Promise.allSettled([
+        loadLibrary(),
+        userId ? loadHouseholds(userId) : Promise.resolve(),
+      ]).catch(err => console.error('Rasoi data load error:', err))
+
+      const timeout = new Promise(resolve =>
+        setTimeout(() => {
+          console.warn('Rasoi: data load timeout (8s) — showing app with available data')
+          resolve()
+        }, 8000)
+      )
+
+      return Promise.race([dataPromise, timeout]).then(() => {
+        if (!userId) setHouseholdChecked(true)
+      })
     }
 
-    // Safety net: if onAuthStateChange never fires (corrupted state, network issues),
+    // Safety net: if onAuthStateChange never fires at all (corrupted state),
     // force loading=false after 5s so the app doesn't hang forever.
     const safetyTimer = setTimeout(() => {
       if (!initialized) {
@@ -154,8 +161,9 @@ export function AppProvider({ children }) {
 
       if (event === 'INITIAL_SESSION' || (event === 'SIGNED_IN' && !initialized)) {
         initialized = true
-        clearTimeout(safetyTimer)
+        // Don't clear safetyTimer here — loadData has its own 8s timeout
         await loadData(u?.id)
+        clearTimeout(safetyTimer)
         setLoading(false)
       } else if (event === 'SIGNED_OUT') {
         setHouseholds([])
