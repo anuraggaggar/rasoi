@@ -218,7 +218,7 @@ export function AppProvider({ children }) {
     preferences, frequencies, deletedItems, recentLogs,
     signIn, signOut,
     selectHousehold, refreshHouseholdData, refreshHouseholds,
-    setHousehold, setHouseholds, setFamilyMembers,
+    setHousehold, setHouseholds, setFamilyMembers, setDishes, setCombos,
     setPreferences, setFrequencies, setDeletedItems, setRecentLogs,
   }
 

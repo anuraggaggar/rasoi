@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
-import { Search, ChevronRight } from 'lucide-react'
+import { Search, ChevronRight, Plus } from 'lucide-react'
+import AddDishForm from '../components/library/AddDishForm'
+import AddComboForm from '../components/library/AddComboForm'
 
 const CUISINES = ['all', 'north_indian', 'south_indian', 'maharashtrian', 'pan_indian']
 const CUISINE_LABELS = {
@@ -16,11 +18,13 @@ const HEALTH_BADGE = {
 }
 
 export default function Library() {
-  const { dishes, combos, deletedItems, household } = useApp()
+  const { dishes, combos, deletedItems, household, setDishes, setCombos } = useApp()
   const navigate = useNavigate()
   const [tab, setTab] = useState('combos')
   const [search, setSearch] = useState('')
   const [cuisine, setCuisine] = useState('all')
+  const [showAddDish, setShowAddDish] = useState(false)
+  const [showAddCombo, setShowAddCombo] = useState(false)
 
   const profile = household?.dietary_profile || {}
 
@@ -50,10 +54,26 @@ export default function Library() {
 
   const items = tab === 'combos' ? visibleCombos : visibleDishes
 
+  const handleDishAdded = (dish) => {
+    setDishes(prev => [...prev, dish])
+  }
+
+  const handleComboAdded = (combo) => {
+    setCombos(prev => [...prev, combo])
+  }
+
   return (
     <div className="flex flex-col min-h-full">
       <div className="px-4 pt-10 pb-3 bg-white border-b border-stone-100">
-        <h1 className="text-2xl font-bold text-stone-900 mb-4">Meal Library</h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold text-stone-900">Meal Library</h1>
+          <button
+            onClick={() => tab === 'dishes' ? setShowAddDish(true) : setShowAddCombo(true)}
+            className="flex items-center gap-1 px-3 py-1.5 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 transition-colors"
+          >
+            <Plus size={16} /> Add
+          </button>
+        </div>
 
         {/* Search */}
         <div className="flex items-center gap-2 bg-stone-100 rounded-xl px-3 py-2 mb-3">
@@ -111,7 +131,12 @@ export default function Library() {
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-stone-50 text-left"
             >
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-stone-800 text-sm truncate">{item.name}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="font-medium text-stone-800 text-sm truncate">{item.name}</p>
+                  {item.is_custom && (
+                    <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-purple-100 text-purple-600">Custom</span>
+                  )}
+                </div>
                 {tab === 'combos' && item.dishes?.length > 0 && (
                   <p className="text-xs text-stone-400 truncate mt-0.5">
                     {item.dishes.map(d => d.name).join(' · ')}
@@ -122,15 +147,20 @@ export default function Library() {
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${HEALTH_BADGE[item.health_tag]}`}>
-                  {item.health_tag}
-                </span>
+                {item.health_tag && (
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${HEALTH_BADGE[item.health_tag]}`}>
+                    {item.health_tag}
+                  </span>
+                )}
                 <ChevronRight size={16} className="text-stone-300" />
               </div>
             </button>
           ))
         )}
       </div>
+
+      {showAddDish && <AddDishForm onClose={() => setShowAddDish(false)} onAdded={handleDishAdded} />}
+      {showAddCombo && <AddComboForm onClose={() => setShowAddCombo(false)} onAdded={handleComboAdded} />}
     </div>
   )
 }
