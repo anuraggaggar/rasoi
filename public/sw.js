@@ -1,35 +1,18 @@
-const CACHE = 'rasoi-v3'
-
-self.addEventListener('install', e => {
-  self.skipWaiting()
-})
-
+// Self-destruct service worker: unregisters itself and clears all caches.
+// The browser will fetch this updated sw.js, install it, and it will
+// immediately clean up — breaking the stale cache cycle.
+self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  )
-})
-
-self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return
-  if (e.request.url.includes('supabase.co')) return
-  if (e.request.url.includes('googleapis.com') || e.request.url.includes('gstatic.com')) return
-
-  // Network-first: always try fresh content, fall back to cache if offline
-  e.respondWith(
-    fetch(e.request)
-      .then(res => {
-        try {
-          if (res.ok && e.request.url.startsWith(self.location.origin)) {
-            caches.open(CACHE).then(c => c.put(e.request, res.clone())).catch(() => {})
-          }
-        } catch (err) {
-          // Response body already consumed — skip caching, not critical
-        }
-        return res
+    Promise.all([
+      caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))),
+      self.registration.unregister(),
+    ]).then(() => self.clients.claim())
+      .then(() => {
+        // Force all open tabs to reload with fresh content
+        self.clients.matchAll({ type: 'window' }).then(clients => {
+          clients.forEach(client => client.navigate(client.url))
+        })
       })
-      .catch(() => caches.match(e.request))
   )
 })
