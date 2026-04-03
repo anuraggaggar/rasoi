@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useApp } from '../contexts/AppContext'
 import { supabase } from '../lib/supabase'
-import { ChevronRight, LogOut, RotateCcw, User, Home, Utensils } from 'lucide-react'
+import { ChevronRight, LogOut, RotateCcw, User, Home, Utensils, ArrowLeftRight } from 'lucide-react'
 
 export default function Settings() {
-  const { household, familyMembers, signOut, deletedItems, setDeletedItems, refreshHouseholdData, setHousehold, setFamilyMembers } = useApp()
+  const { household, households, familyMembers, signOut, deletedItems, setDeletedItems, refreshHouseholdData, setHousehold, setFamilyMembers } = useApp()
   const [section, setSection] = useState(null) // 'household' | 'dietary' | 'members' | 'deleted'
   const [saving, setSaving] = useState(false)
   const [editName, setEditName] = useState(household?.name || '')
@@ -90,7 +90,15 @@ export default function Settings() {
         </div>
       )}
 
-      <div className="px-4 py-6 mt-auto">
+      <div className="px-4 py-6 mt-auto space-y-3">
+        {households.length > 1 && (
+          <button
+            onClick={() => setHousehold(null)}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-orange-200 text-orange-500 font-medium"
+          >
+            <ArrowLeftRight size={16} /> Switch household
+          </button>
+        )}
         <button
           onClick={signOut}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-red-200 text-red-500 font-medium"

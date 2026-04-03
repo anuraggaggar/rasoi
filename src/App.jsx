@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AppProvider, useApp } from './contexts/AppContext'
 import Landing from './pages/Landing'
 import Onboarding from './pages/Onboarding'
+import HouseholdPicker from './pages/HouseholdPicker'
 import Home from './pages/Home'
 import Library from './pages/Library'
 import DishDetail from './pages/DishDetail'
@@ -38,17 +39,26 @@ function LoadingScreen({ showRetry }) {
 }
 
 function AppRoutes() {
-  const { user, household, householdChecked, loading } = useApp()
+  const { user, household, households, householdChecked, loading } = useApp()
+  const [creatingNew, setCreatingNew] = useState(false)
 
   // Still loading auth + data
   if (loading) return <LoadingScreen showRetry />
 
   if (!user) return <Routes><Route path="*" element={<Landing />} /></Routes>
 
-  // User is logged in but household status unknown — keep loading, show retry after 8s
+  // User is logged in but household status unknown
   if (!householdChecked) return <LoadingScreen showRetry />
 
-  if (!household) return <Routes><Route path="*" element={<Onboarding />} /></Routes>
+  // No household selected yet
+  if (!household) {
+    // User clicked "Create new household" from picker, or has no households at all
+    if (creatingNew || households.length === 0) {
+      return <Routes><Route path="*" element={<Onboarding onBack={households.length > 0 ? () => setCreatingNew(false) : null} />} /></Routes>
+    }
+    // Multiple households — show picker
+    return <Routes><Route path="*" element={<HouseholdPicker onCreateNew={() => setCreatingNew(true)} />} /></Routes>
+  }
 
   return (
     <Routes>

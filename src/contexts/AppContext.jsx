@@ -5,7 +5,8 @@ const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [household, setHousehold] = useState(null)
+  const [households, setHouseholds] = useState([]) // all households for user
+  const [household, setHousehold] = useState(null) // currently selected
   const [familyMembers, setFamilyMembers] = useState([])
   const [dishes, setDishes] = useState([])
   const [combos, setCombos] = useState([])
@@ -91,16 +92,31 @@ export function AppProvider({ children }) {
     }
   }, [])
 
-  // Load household for user
-  const loadHousehold = useCallback(async (userId) => {
+  // Load all households for user; auto-select if exactly one
+  const loadHouseholds = useCallback(async (userId) => {
     const { data } = await supabase
       .from('households')
       .select('*')
       .eq('user_id', userId)
-      .single()
-    setHousehold(data || null)
+      .order('created_at', { ascending: false })
+    const list = data || []
+    setHouseholds(list)
     setHouseholdChecked(true)
-    if (data) await loadHouseholdData(data.id)
+    if (list.length === 1) {
+      setHousehold(list[0])
+      await loadHouseholdData(list[0].id)
+    }
+  }, [loadHouseholdData])
+
+  // Select a specific household and load its data
+  const selectHousehold = useCallback(async (hh) => {
+    setHousehold(hh)
+    setFamilyMembers([])
+    setPreferences({})
+    setFrequencies({})
+    setDeletedItems(new Set())
+    setRecentLogs([])
+    await loadHouseholdData(hh.id)
   }, [loadHouseholdData])
 
   useEffect(() => {
@@ -110,7 +126,7 @@ export function AppProvider({ children }) {
       try {
         await Promise.allSettled([
           loadLibrary(),
-          userId ? loadHousehold(userId) : Promise.resolve(),
+          userId ? loadHouseholds(userId) : Promise.resolve(),
         ])
       } catch (err) {
         console.error('Rasoi data load error:', err)
@@ -142,6 +158,7 @@ export function AppProvider({ children }) {
         await loadData(u?.id)
         setLoading(false)
       } else if (event === 'SIGNED_OUT') {
+        setHouseholds([])
         setHousehold(null)
         setHouseholdChecked(true)
         setFamilyMembers([])
@@ -156,7 +173,7 @@ export function AppProvider({ children }) {
       clearTimeout(safetyTimer)
       subscription.unsubscribe()
     }
-  }, [loadLibrary, loadHousehold])
+  }, [loadLibrary, loadHouseholds])
 
   const signIn = () =>
     supabase.auth.signInWithOAuth({
@@ -172,9 +189,9 @@ export function AppProvider({ children }) {
     if (household) await loadHouseholdData(household.id)
   }, [household, loadHouseholdData])
 
-  const refreshHousehold = useCallback(async () => {
-    if (user) await loadHousehold(user.id)
-  }, [user, loadHousehold])
+  const refreshHouseholds = useCallback(async () => {
+    if (user) await loadHouseholds(user.id)
+  }, [user, loadHouseholds])
 
   // Compute combo health_tag and meal_suitability dynamically from dishes
   const enrichedCombos = combos.map(combo => {
@@ -196,12 +213,12 @@ export function AppProvider({ children }) {
   })
 
   const value = {
-    user, household, householdChecked, setHouseholdChecked, familyMembers, loading,
+    user, households, household, householdChecked, setHouseholdChecked, familyMembers, loading,
     dishes, combos: enrichedCombos,
     preferences, frequencies, deletedItems, recentLogs,
     signIn, signOut,
-    refreshHouseholdData, refreshHousehold,
-    setHousehold, setFamilyMembers,
+    selectHousehold, refreshHouseholdData, refreshHouseholds,
+    setHousehold, setHouseholds, setFamilyMembers,
     setPreferences, setFrequencies, setDeletedItems, setRecentLogs,
   }
 

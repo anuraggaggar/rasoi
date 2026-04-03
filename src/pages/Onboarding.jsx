@@ -80,8 +80,8 @@ function MemberForm({ member, onChange, onRemove, canRemove }) {
   )
 }
 
-export default function Onboarding() {
-  const { user, setHousehold, setHouseholdChecked, setFamilyMembers } = useApp()
+export default function Onboarding({ onBack }) {
+  const { user, setHousehold, setHouseholds, setHouseholdChecked, setFamilyMembers } = useApp()
   const [step, setStep] = useState(1)
   const [householdName, setHouseholdName] = useState('')
   const [members, setMembers] = useState([
@@ -129,6 +129,7 @@ export default function Onboarding() {
       ])
       if (mErr) throw mErr
 
+      setHouseholds(prev => [hh, ...prev])
       setHousehold(hh)
       setHouseholdChecked(true)
       setFamilyMembers(savedMembers)
@@ -142,6 +143,9 @@ export default function Onboarding() {
     <div className="min-h-screen bg-white flex flex-col max-w-lg mx-auto">
       {/* Progress */}
       <div className="px-6 pt-12 pb-4">
+        {onBack && (
+          <button onClick={onBack} className="text-orange-500 text-sm mb-4 flex items-center gap-1">← Back to households</button>
+        )}
         <div className="flex items-center gap-2 mb-6">
           {[1, 2, 3].map(s => (
             <div key={s} className={`flex-1 h-1 rounded-full transition-colors ${s <= step ? 'bg-orange-500' : 'bg-stone-200'}`} />
