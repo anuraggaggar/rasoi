@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
 import { supabase } from '../lib/supabase'
 import RatingToggle from '../components/shared/RatingToggle'
-import { ArrowLeft, Trash2, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Trash2, ExternalLink, Pencil, Check, X } from 'lucide-react'
 
 const FREQ_OPTIONS = ['never', 'rarely', 'sometimes', 'often']
 const HEALTH_BADGE = { light: 'bg-green-100 text-green-700', balanced: 'bg-blue-100 text-blue-700', heavy: 'bg-orange-100 text-orange-700' }
@@ -12,13 +12,29 @@ const PREP_BADGE = { quick: 'bg-stone-100 text-stone-600', medium: 'bg-stone-100
 export default function DishDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { dishes, familyMembers, household, preferences, frequencies, deletedItems, setPreferences, setFrequencies, setDeletedItems } = useApp()
+  const { dishes, setDishes, familyMembers, household, preferences, frequencies, deletedItems, setPreferences, setFrequencies, setDeletedItems } = useApp()
 
   const dish = dishes.find(d => d.id === id)
   if (!dish) return <div className="p-6 text-stone-400">Dish not found.</div>
 
   const isDeleted = deletedItems.has(id)
   const freq = frequencies[id] || 'sometimes'
+
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput] = useState(dish.name)
+  const [savingName, setSavingName] = useState(false)
+
+  const saveName = async () => {
+    const trimmed = nameInput.trim()
+    if (!trimmed || trimmed === dish.name) { setEditingName(false); return }
+    setSavingName(true)
+    const { error } = await supabase.from('dishes').update({ name: trimmed }).eq('id', id)
+    if (!error) {
+      setDishes(prev => prev.map(d => d.id === id ? { ...d, name: trimmed } : d))
+    }
+    setSavingName(false)
+    setEditingName(false)
+  }
 
   const setRating = async (memberId, rating) => {
     const { error } = await supabase.from('dish_preferences').upsert({
@@ -69,7 +85,26 @@ export default function DishDetail() {
         <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-orange-500 text-sm mb-4">
           <ArrowLeft size={16} /> Back
         </button>
-        <h1 className="text-2xl font-bold text-stone-900 mb-2">{dish.name}</h1>
+        {editingName ? (
+          <div className="flex items-center gap-2 mb-2">
+            <input
+              autoFocus
+              className="flex-1 text-2xl font-bold text-stone-900 border-b-2 border-orange-400 focus:outline-none bg-transparent"
+              value={nameInput}
+              onChange={e => setNameInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false) }}
+            />
+            <button onClick={saveName} disabled={savingName} className="text-green-600"><Check size={20} /></button>
+            <button onClick={() => { setEditingName(false); setNameInput(dish.name) }} className="text-stone-400"><X size={20} /></button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 mb-2">
+            <h1 className="text-2xl font-bold text-stone-900">{dish.name}</h1>
+            <button onClick={() => { setNameInput(dish.name); setEditingName(true) }} className="text-stone-300 hover:text-orange-400 transition-colors">
+              <Pencil size={15} />
+            </button>
+          </div>
+        )}
         {dish.description && <p className="text-stone-500 text-sm mb-3">{dish.description}</p>}
 
         <div className="flex flex-wrap gap-2 mb-3">

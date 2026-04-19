@@ -235,7 +235,7 @@ function domainFromUrl(url) {
 function fetchDishTitle(url) {
   try {
     if (isYouTubeUrl(url)) return fetchYouTubeTitle(url)
-    return fetchPageTitle(url)
+    return fetchPageTitle(url)  // handles Instagram + generic sites
   } catch (e) {
     Logger.log(`fetchDishTitle error for ${url}: ${e}`)
     return null
@@ -258,17 +258,19 @@ function fetchYouTubeTitle(url) {
   return json.title ? json.title.trim() : null
 }
 
+function isInstagramUrl(url) {
+  return /^https?:\/\/(www\.)?instagram\.com/.test(url)
+}
+
 /**
  * Generic page title fetch — works for Instagram, websites, etc.
  * Prefers og:title (usually the recipe/video name); falls back to <title>.
- * Strips common platform suffixes like " • Instagram", " - YouTube", " | Site Name".
  */
 function fetchPageTitle(url) {
   const response = UrlFetchApp.fetch(url, {
     muteHttpExceptions: true,
     followRedirects: true,
     headers: {
-      // Pretend to be a browser so sites don't redirect to an app or login page
       'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
     },
   })
@@ -276,30 +278,88 @@ function fetchPageTitle(url) {
 
   const html = response.getContentText()
 
-  // Try og:title first (most social/recipe sites set this to the content name)
+  // Try og:title first
   const ogMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
     || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i)
-  if (ogMatch) return cleanPageTitle(ogMatch[1])
+  if (ogMatch) {
+    const raw = decodeHtmlEntities(ogMatch[1])
+    return isInstagramUrl(url) ? extractInstagramDishName(raw) : cleanPageTitle(raw)
+  }
 
   // Fall back to <title> tag
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
-  if (titleMatch) return cleanPageTitle(titleMatch[1])
+  if (titleMatch) {
+    const raw = decodeHtmlEntities(titleMatch[1])
+    return isInstagramUrl(url) ? extractInstagramDishName(raw) : cleanPageTitle(raw)
+  }
 
   return null
 }
 
 /**
- * Remove common platform suffixes and decode HTML entities.
- * e.g. "Paneer Butter Masala • Instagram" → "Paneer Butter Masala"
+ * Instagram og:title looks like:
+ *   "cookingwithyukta on Instagram: "Cafe Style Rice Bowl\nIn frame: Butter garlic Rice...""
+ *
+ * Strategy:
+ *   1. Strip the "username on Instagram: " prefix
+ *   2. Take only the first line of the caption
+ *   3. Cut at common recipe-body separators ("In frame:", "Ingredients", etc.)
+ *   4. Remove any hashtags that sneak in
+ */
+function extractInstagramDishName(raw) {
+  // Strip "username on Instagram: " prefix (with optional opening quote/curly-quote)
+  let text = raw.replace(/^.+?\bon\s+instagram:\s*/i, '').replace(/^["""']+/, '').trim()
+
+  // Take only the first line
+  text = text.split(/[\n\r]/)[0].trim()
+
+  // Cut at common recipe-post section markers
+  const cutPatterns = [
+    /\s+in\s+frame[:\s]/i,
+    /\s+ingredients?[:\s]/i,
+    /\s+recipe[:\s]/i,
+    /\s+method[:\s]/i,
+    /\s+directions?[:\s]/i,
+    /\s+how\s+to\s+make/i,
+    /\s+for\s+the\s+(sauce|dressing|base|rice|pasta|gravy)/i,
+    /\s+serves?\s+\d/i,
+    /\s+makes?\s+\d/i,
+  ]
+  for (const pattern of cutPatterns) {
+    const idx = text.search(pattern)
+    if (idx > 8) text = text.substring(0, idx).trim()
+  }
+
+  // Remove hashtags
+  text = text.replace(/#\w+/g, '').trim()
+
+  // Remove trailing punctuation
+  text = text.replace(/[.,!?:;\-–—""''']+$/, '').trim()
+
+  // Sanity-check length — if still very long, it's probably not a clean title
+  if (text.length > 70) text = text.substring(0, 70).trim()
+
+  return text || null
+}
+
+/**
+ * Remove common platform suffixes for non-Instagram pages.
+ * e.g. "Paneer Butter Masala | Hebbar's Kitchen" → "Paneer Butter Masala"
  */
 function cleanPageTitle(raw) {
   return raw
-    .replace(/\s*[•|·–—\-]\s*(Instagram|YouTube|Facebook|Twitter|TikTok|Pinterest)[^]*/i, '')
-    .replace(/\s*\|\s*[^|]+$/, '')          // strip " | Site Name" suffix
+    .replace(/\s*[•·–—]\s*(Instagram|YouTube|Facebook|Twitter|TikTok|Pinterest)\b.*/i, '')
+    .replace(/\s*\|\s*[^|]+$/, '')
+    .replace(/\s*-\s*[^-]{3,}$/, '')  // strip " - Site Name" suffix
+    .trim()
+}
+
+function decodeHtmlEntities(str) {
+  return str
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .trim()
+    .replace(/&apos;/g, "'")
 }
