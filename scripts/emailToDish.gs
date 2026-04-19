@@ -108,8 +108,10 @@ function processMessage(message) {
     return
   }
 
-  // 3. Derive a dish name from the subject (strip Fwd:/Re: prefixes)
-  const dishName = cleanSubject(subject) || domainFromUrl(url) || 'Imported recipe'
+  // 3. Try to fetch the actual title from the URL; fall back to email subject
+  const urlTitle = fetchDishTitle(url)
+  const dishName = urlTitle || cleanSubject(subject) || domainFromUrl(url) || 'Imported recipe'
+  Logger.log(`Dish name resolved to: "${dishName}" (urlTitle=${urlTitle})`)
 
   // 4. Create the dish via Supabase REST API
   const created = createDish({
@@ -218,4 +220,86 @@ function domainFromUrl(url) {
   } catch (_) {
     return null
   }
+}
+
+/**
+ * Try to fetch a human-readable title from a recipe URL.
+ *
+ * Strategy:
+ *   YouTube  → oEmbed API (free, no key needed) → returns exact video title
+ *   Instagram → fetch page HTML → extract og:title → strip trailing " • Instagram"
+ *   Other     → fetch page HTML → extract og:title, then <title> tag as fallback
+ *
+ * Returns a clean title string, or null if anything fails.
+ */
+function fetchDishTitle(url) {
+  try {
+    if (isYouTubeUrl(url)) return fetchYouTubeTitle(url)
+    return fetchPageTitle(url)
+  } catch (e) {
+    Logger.log(`fetchDishTitle error for ${url}: ${e}`)
+    return null
+  }
+}
+
+function isYouTubeUrl(url) {
+  return /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)/.test(url)
+}
+
+/**
+ * YouTube oEmbed — completely free, no API key required.
+ * Docs: https://oembed.com / https://www.youtube.com/oembed
+ */
+function fetchYouTubeTitle(url) {
+  const oEmbedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`
+  const response = UrlFetchApp.fetch(oEmbedUrl, { muteHttpExceptions: true })
+  if (response.getResponseCode() !== 200) return null
+  const json = JSON.parse(response.getContentText())
+  return json.title ? json.title.trim() : null
+}
+
+/**
+ * Generic page title fetch — works for Instagram, websites, etc.
+ * Prefers og:title (usually the recipe/video name); falls back to <title>.
+ * Strips common platform suffixes like " • Instagram", " - YouTube", " | Site Name".
+ */
+function fetchPageTitle(url) {
+  const response = UrlFetchApp.fetch(url, {
+    muteHttpExceptions: true,
+    followRedirects: true,
+    headers: {
+      // Pretend to be a browser so sites don't redirect to an app or login page
+      'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+    },
+  })
+  if (response.getResponseCode() !== 200) return null
+
+  const html = response.getContentText()
+
+  // Try og:title first (most social/recipe sites set this to the content name)
+  const ogMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
+    || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i)
+  if (ogMatch) return cleanPageTitle(ogMatch[1])
+
+  // Fall back to <title> tag
+  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+  if (titleMatch) return cleanPageTitle(titleMatch[1])
+
+  return null
+}
+
+/**
+ * Remove common platform suffixes and decode HTML entities.
+ * e.g. "Paneer Butter Masala • Instagram" → "Paneer Butter Masala"
+ */
+function cleanPageTitle(raw) {
+  return raw
+    .replace(/\s*[•|·–—\-]\s*(Instagram|YouTube|Facebook|Twitter|TikTok|Pinterest)[^]*/i, '')
+    .replace(/\s*\|\s*[^|]+$/, '')          // strip " | Site Name" suffix
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim()
 }
