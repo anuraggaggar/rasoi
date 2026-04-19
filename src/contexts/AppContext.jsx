@@ -9,7 +9,6 @@ export function AppProvider({ children }) {
   const [household, setHousehold] = useState(null) // currently selected
   const [familyMembers, setFamilyMembers] = useState([])
   const [dishes, setDishes] = useState([])
-  const [combos, setCombos] = useState([])
   const [preferences, setPreferences] = useState({}) // { dish_id: { member_id: rating } }
   const [frequencies, setFrequencies] = useState({}) // { item_id: frequency }
   const [deletedItems, setDeletedItems] = useState(new Set())
@@ -17,27 +16,11 @@ export function AppProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [householdChecked, setHouseholdChecked] = useState(false)
 
-  // Load library (dishes + combos) — runs once, no auth needed after
+  // Load library (dishes only — combos concept removed)
   const loadLibrary = useCallback(async () => {
-    const [dishResult, comboResult] = await Promise.all([
-      supabase.from('dishes').select('*').order('name'),
-      supabase.from('meal_combos').select(`
-        *,
-        combo_dishes(dish_id, position, dishes(*))
-      `).order('name'),
-    ])
-    if (dishResult.data) setDishes(dishResult.data)
-    if (dishResult.error) console.error('loadLibrary dishes error:', dishResult.error)
-    if (comboResult.data) {
-      setCombos(comboResult.data.map(c => ({
-        ...c,
-        dishes: (c.combo_dishes || [])
-          .sort((a, b) => a.position - b.position)
-          .map(cd => cd.dishes)
-          .filter(Boolean),
-      })))
-    }
-    if (comboResult.error) console.error('loadLibrary combos error:', comboResult.error)
+    const { data, error } = await supabase.from('dishes').select('*').order('name')
+    if (data) setDishes(data)
+    if (error) console.error('loadLibrary dishes error:', error)
   }, [])
 
   // Load household-specific data
@@ -201,32 +184,13 @@ export function AppProvider({ children }) {
     if (user) await loadHouseholds(user.id)
   }, [user, loadHouseholds])
 
-  // Compute combo health_tag and meal_suitability dynamically from dishes
-  const enrichedCombos = combos.map(combo => {
-    if (!combo.dishes?.length) return combo
-    const healthOrder = { light: 0, balanced: 1, heavy: 2 }
-    const prepOrder = { quick: 0, medium: 1, elaborate: 2 }
-    const maxHealth = combo.dishes.reduce((max, d) =>
-      healthOrder[d.health_tag] > healthOrder[max] ? d.health_tag : max,
-      'light')
-    const maxPrep = combo.dishes.reduce((max, d) =>
-      prepOrder[d.prep_time] > prepOrder[max] ? d.prep_time : max,
-      'quick')
-    // meal_suitability = slots where ALL dishes qualify
-    const allSlots = ['breakfast', 'lunch', 'dinner']
-    const suitability = allSlots.filter(slot =>
-      combo.dishes.every(d => d.meal_suitability?.includes(slot))
-    )
-    return { ...combo, health_tag: maxHealth, prep_time: maxPrep, meal_suitability: suitability }
-  })
-
   const value = {
     user, households, household, householdChecked, setHouseholdChecked, familyMembers, loading,
-    dishes, combos: enrichedCombos,
+    dishes, combos: [], // combos concept removed; stub kept so ComboDetail shows "not found" gracefully
     preferences, frequencies, deletedItems, recentLogs,
     signIn, signOut,
     selectHousehold, refreshHouseholdData, refreshHouseholds,
-    setHousehold, setHouseholds, setFamilyMembers, setDishes, setCombos,
+    setHousehold, setHouseholds, setFamilyMembers, setDishes,
     setPreferences, setFrequencies, setDeletedItems, setRecentLogs,
   }
 

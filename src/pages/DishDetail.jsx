@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
 import { supabase } from '../lib/supabase'
 import RatingToggle from '../components/shared/RatingToggle'
-import { ArrowLeft, Trash2 } from 'lucide-react'
+import { ArrowLeft, Trash2, ExternalLink } from 'lucide-react'
 
 const FREQ_OPTIONS = ['never', 'rarely', 'sometimes', 'often']
 const HEALTH_BADGE = { light: 'bg-green-100 text-green-700', balanced: 'bg-blue-100 text-blue-700', heavy: 'bg-orange-100 text-orange-700' }
@@ -140,6 +140,29 @@ export default function DishDetail() {
             ))}
           </div>
         </div>
+
+        {/* Recipe */}
+        {(dish.recipe_url || dish.recipe_text) && (
+          <div>
+            <p className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">Recipe</p>
+            {dish.recipe_url && (
+              <a
+                href={dish.recipe_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-orange-500 text-sm font-medium mb-2 break-all"
+              >
+                <ExternalLink size={14} className="shrink-0" />
+                <span className="truncate">{dish.recipe_url.replace(/^https?:\/\/(www\.)?/, '')}</span>
+              </a>
+            )}
+            {dish.recipe_text && (
+              <p className="text-sm text-stone-600 leading-relaxed whitespace-pre-wrap bg-stone-50 rounded-xl p-3">
+                {dish.recipe_text}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Delete/restore */}
         <div className="pt-2 border-t border-stone-100">

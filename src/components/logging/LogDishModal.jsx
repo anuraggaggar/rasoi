@@ -3,7 +3,7 @@ import { X, Check } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useApp } from '../../contexts/AppContext'
 
-export default function LogMealModal({ combo, mealSlot, onClose, mode = 'plan' }) {
+export default function LogDishModal({ dish, mealSlot, onClose, mode = 'plan' }) {
   const { household, refreshHouseholdData } = useApp()
   const [logging, setLogging] = useState(false)
   const [done, setDone] = useState(false)
@@ -17,17 +17,16 @@ export default function LogMealModal({ combo, mealSlot, onClose, mode = 'plan' }
           household_id: household.id,
           meal_date: new Date().toISOString().split('T')[0],
           meal_slot: mealSlot,
-          combo_id: combo.id,
+          combo_id: null,
           mode,
         })
         .select().single()
       if (logErr) throw logErr
 
-      if (combo.dishes?.length) {
-        await supabase.from('meal_log_dishes').insert(
-          combo.dishes.map(d => ({ meal_log_id: log.id, dish_id: d.id }))
-        )
-      }
+      await supabase.from('meal_log_dishes').insert({
+        meal_log_id: log.id,
+        dish_id: dish.id,
+      })
 
       await refreshHouseholdData()
       setDone(true)
@@ -55,19 +54,18 @@ export default function LogMealModal({ combo, mealSlot, onClose, mode = 'plan' }
               <Check size={28} className="text-green-600" />
             </div>
             <p className="font-semibold text-stone-800">Logged!</p>
-            <p className="text-stone-500 text-sm">{combo.name} added to today's history</p>
+            <p className="text-stone-500 text-sm">{dish.name} added to today's history</p>
           </div>
         ) : (
           <>
-            <h2 className="text-lg font-bold text-stone-900 mb-1">{combo.name}</h2>
-            <p className="text-stone-500 text-sm mb-4">
-              {combo.dishes?.map(d => d.name).join(' · ')}
-            </p>
-
+            <h2 className="text-lg font-bold text-stone-900 mb-1">{dish.name}</h2>
+            {dish.description && (
+              <p className="text-stone-500 text-sm mb-3">{dish.description}</p>
+            )}
             <div className="flex items-center gap-3 text-sm text-stone-500 mb-6">
-              <span className="capitalize">🕐 {combo.prep_time}</span>
-              <span className="capitalize">🥗 {combo.health_tag}</span>
-              <span className="capitalize">🍴 {combo.cuisine?.replace('_', ' ')}</span>
+              <span className="capitalize">🕐 {dish.prep_time}</span>
+              <span className="capitalize">🥗 {dish.health_tag}</span>
+              <span className="capitalize">🍴 {dish.cuisine?.replace(/_/g, ' ')}</span>
             </div>
 
             <button
@@ -75,7 +73,7 @@ export default function LogMealModal({ combo, mealSlot, onClose, mode = 'plan' }
               disabled={logging}
               className="w-full bg-orange-500 disabled:bg-orange-300 text-white font-semibold py-4 rounded-xl transition-colors"
             >
-              {logging ? 'Logging…' : "We're cooking this tonight 🎉"}
+              {logging ? 'Logging…' : "We're cooking this 🎉"}
             </button>
           </>
         )}

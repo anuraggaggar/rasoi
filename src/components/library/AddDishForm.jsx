@@ -8,6 +8,9 @@ const CUISINES = [
   { value: 'south_indian', label: 'South Indian' },
   { value: 'maharashtrian', label: 'Maharashtrian' },
   { value: 'pan_indian', label: 'Pan-Indian' },
+  { value: 'asian', label: 'Asian' },
+  { value: 'italian', label: 'Italian' },
+  { value: 'other', label: 'Other' },
 ]
 
 const MEAL_SLOTS = ['breakfast', 'lunch', 'dinner']
@@ -25,6 +28,8 @@ export default function AddDishForm({ onClose, onAdded }) {
   const [isVegetarian, setIsVegetarian] = useState(true)
   const [containsEggs, setContainsEggs] = useState(false)
   const [containsMeat, setContainsMeat] = useState(false)
+  const [recipeUrl, setRecipeUrl] = useState('')
+  const [recipeText, setRecipeText] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -52,6 +57,8 @@ export default function AddDishForm({ onClose, onAdded }) {
       contains_beef_pork: false,
       is_custom: true,
       household_id: household.id,
+      recipe_url: recipeUrl.trim() || null,
+      recipe_text: recipeText.trim() || null,
     }).select().single()
 
     if (err) {
@@ -64,7 +71,7 @@ export default function AddDishForm({ onClose, onAdded }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40" />
       <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="sticky top-0 bg-white px-5 pt-5 pb-3 border-b border-stone-100 flex items-center justify-between">
@@ -165,6 +172,27 @@ export default function AddDishForm({ onClose, onAdded }) {
                   containsMeat ? 'bg-red-100 border-red-300 text-red-700' : 'bg-white border-stone-200 text-stone-500'
                 }`}>🍗 Non-veg</button>
             </div>
+          </div>
+
+          {/* Recipe */}
+          <div>
+            <label className="text-sm font-medium text-stone-700 block mb-1">Recipe link</label>
+            <input
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400"
+              placeholder="YouTube, Instagram or website URL"
+              value={recipeUrl}
+              onChange={e => setRecipeUrl(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-stone-700 block mb-1">Recipe notes</label>
+            <textarea
+              rows={3}
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400 resize-none"
+              placeholder="Any notes on how to make it…"
+              value={recipeText}
+              onChange={e => setRecipeText(e.target.value)}
+            />
           </div>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}

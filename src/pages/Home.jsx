@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react'
 import { useApp } from '../contexts/AppContext'
 import { generateSuggestions } from '../lib/suggestions'
-import ComboCard from '../components/decision/ComboCard'
+import DishCard from '../components/decision/DishCard'
 import FilterBar from '../components/decision/FilterBar'
-import LogMealModal from '../components/logging/LogMealModal'
-import { ChevronDown, Utensils } from 'lucide-react'
+import LogDishModal from '../components/logging/LogDishModal'
+import { Utensils } from 'lucide-react'
 
 function detectSlot() {
   const h = new Date().getHours()
@@ -17,12 +17,13 @@ const SLOT_EMOJI = { breakfast: '🌅', lunch: '☀️', dinner: '🌙' }
 const CUISINE_LABELS = {
   north_indian: 'North Indian', south_indian: 'South Indian',
   maharashtrian: 'Maharashtrian', pan_indian: 'Pan-Indian',
+  asian: 'Asian', italian: 'Italian', other: 'Other',
 }
 
 export default function Home() {
   const {
     household, familyMembers,
-    combos, dishes, preferences, frequencies, deletedItems, recentLogs,
+    dishes, preferences, frequencies, deletedItems, recentLogs,
   } = useApp()
 
   const [mealSlot, setMealSlot] = useState(detectSlot)
@@ -30,7 +31,7 @@ export default function Home() {
   const [showResults, setShowResults] = useState(false)
   const [prepFilter, setPrepFilter] = useState(['quick', 'medium', 'elaborate'])
   const [healthFilter, setHealthFilter] = useState(['light', 'balanced', 'heavy'])
-  const [logCombo, setLogCombo] = useState(null)
+  const [logDish, setLogDish] = useState(null)
 
   const toggleMember = (id) =>
     setCheckedIds(ids =>
@@ -42,37 +43,38 @@ export default function Home() {
   const suggestions = useMemo(() => {
     if (!showResults) return []
     return generateSuggestions({
-      combos, mealSlot,
+      dishes,
+      mealSlot,
       checkedMemberIds: checkedIds,
       familyMembers,
       dietaryProfile: household?.dietary_profile || { vegetarian: true, eggs: false, chicken_mutton_fish: false, beef_pork: false },
       preferences, frequencies, deletedItems, recentLogs,
     })
-  }, [showResults, combos, mealSlot, checkedIds, familyMembers, household, preferences, frequencies, deletedItems, recentLogs])
+  }, [showResults, dishes, mealSlot, checkedIds, familyMembers, household, preferences, frequencies, deletedItems, recentLogs])
 
   const filtered = useMemo(() =>
-    suggestions.filter(c =>
-      prepFilter.includes(c.prep_time) && healthFilter.includes(c.health_tag)
+    suggestions.filter(d =>
+      prepFilter.includes(d.prep_time) && healthFilter.includes(d.health_tag)
     ),
     [suggestions, prepFilter, healthFilter]
   )
 
-  // Group by cuisine
   const grouped = useMemo(() => {
     const groups = {}
-    filtered.forEach(c => {
-      const key = c.cuisine || 'other'
+    filtered.forEach(d => {
+      const key = d.cuisine || 'other'
       if (!groups[key]) groups[key] = []
-      groups[key].push(c)
+      groups[key].push(d)
     })
     return groups
   }, [filtered])
 
   // Weekly health nudge
-  const weekLogs = recentLogs.filter(l => {
-    const d = new Date(l.meal_date)
-    return (new Date() - d) < 7 * 86400000
-  })
+  const weekLogs = recentLogs.filter(l => (new Date() - new Date(l.meal_date)) < 7 * 86400000)
+  const heavyCount = weekLogs.filter(l => {
+    const dish = l.dish_ids?.[0] && dishes.find(d => d.id === l.dish_ids[0])
+    return dish?.health_tag === 'heavy'
+  }).length
 
   return (
     <div className="flex flex-col min-h-full">
@@ -87,12 +89,7 @@ export default function Home() {
           <span className="text-2xl">{SLOT_EMOJI[mealSlot]}</span>
           <div>
             <p className="text-xs text-stone-400">Deciding</p>
-            <div className="flex items-center gap-1">
-              <h1 className="text-2xl font-bold text-stone-900 capitalize">{mealSlot}</h1>
-              <button className="text-stone-400">
-                <ChevronDown size={16} />
-              </button>
-            </div>
+            <h1 className="text-2xl font-bold text-stone-900 capitalize">{mealSlot}</h1>
           </div>
           <div className="ml-auto flex gap-1">
             {['breakfast', 'lunch', 'dinner'].map(s => (
@@ -146,21 +143,11 @@ export default function Home() {
           />
 
           <div className="flex-1 px-4 py-4 space-y-6 overflow-y-auto">
-            {/* Health nudge */}
-            {weekLogs.length >= 3 && (() => {
-              const heavyCount = weekLogs.filter(l => {
-                const combo = combos.find(c => c.id === l.combo_id)
-                return combo?.health_tag === 'heavy'
-              }).length
-              if (heavyCount >= Math.ceil(weekLogs.length * 0.5)) {
-                return (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">
-                    🥗 Your meals this week have been mostly heavy — lighter options are ranked higher.
-                  </div>
-                )
-              }
-              return null
-            })()}
+            {weekLogs.length >= 3 && heavyCount >= Math.ceil(weekLogs.length * 0.5) && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">
+                🥗 Your meals this week have been mostly heavy — lighter options are ranked higher.
+              </div>
+            )}
 
             {filtered.length === 0 ? (
               <div className="text-center py-16">
@@ -172,15 +159,15 @@ export default function Home() {
               Object.entries(grouped).map(([cuisine, items]) => (
                 <div key={cuisine}>
                   <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-3">
-                    {CUISINE_LABELS[cuisine] || cuisine}
+                    {CUISINE_LABELS[cuisine] || cuisine.replace(/_/g, ' ')}
                   </h2>
                   <div className="space-y-3">
-                    {items.map(combo => (
-                      <ComboCard
-                        key={combo.id}
-                        combo={combo}
+                    {items.map(dish => (
+                      <DishCard
+                        key={dish.id}
+                        dish={dish}
                         mealSlot={mealSlot}
-                        onSelect={() => setLogCombo(combo)}
+                        onSelect={() => setLogDish(dish)}
                       />
                     ))}
                   </div>
@@ -195,11 +182,11 @@ export default function Home() {
         </>
       )}
 
-      {logCombo && (
-        <LogMealModal
-          combo={logCombo}
+      {logDish && (
+        <LogDishModal
+          dish={logDish}
           mealSlot={mealSlot}
-          onClose={() => setLogCombo(null)}
+          onClose={() => setLogDish(null)}
         />
       )}
     </div>

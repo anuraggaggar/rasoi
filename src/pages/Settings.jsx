@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useApp } from '../contexts/AppContext'
 import { supabase } from '../lib/supabase'
-import { ChevronRight, LogOut, RotateCcw, User, Home, Utensils, ArrowLeftRight } from 'lucide-react'
+import { ChevronRight, LogOut, RotateCcw, User, Home, Utensils, ArrowLeftRight, Mail } from 'lucide-react'
 
 export default function Settings() {
   const { household, households, familyMembers, signOut, deletedItems, setDeletedItems, refreshHouseholdData, setHousehold, setFamilyMembers } = useApp()
-  const [section, setSection] = useState(null) // 'household' | 'dietary' | 'members' | 'deleted'
+  const [section, setSection] = useState(null) // 'household' | 'dietary' | 'members' | 'deleted' | 'email'
   const [saving, setSaving] = useState(false)
   const [editName, setEditName] = useState(household?.name || '')
+  const [editEmail, setEditEmail] = useState(household?.registered_email || '')
   const [dietaryProfile, setDietaryProfile] = useState(household?.dietary_profile || {})
 
   if (section === 'dietary') {
@@ -61,10 +62,16 @@ export default function Settings() {
         <SettingsRow icon={Utensils} label="Dietary profile" value="What your household eats" onClick={() => setSection('dietary')} />
         <SettingsRow icon={User} label="Family members" value={`${familyMembers.length} member${familyMembers.length !== 1 ? 's' : ''}`} onClick={() => setSection('members')} />
         <SettingsRow icon={RotateCcw} label="Manage deleted dishes" value={`${deletedItems.size} hidden`} onClick={() => setSection('deleted')} />
+        <SettingsRow
+          icon={Mail}
+          label="Email for dish import"
+          value={household?.registered_email || 'Not set'}
+          onClick={() => { setEditEmail(household?.registered_email || ''); setSection('email') }}
+        />
       </div>
 
       {section === 'household' && (
-        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setSection(null)}>
+        <div className="fixed inset-0 z-[60] flex items-end" onClick={() => setSection(null)}>
           <div className="absolute inset-0 bg-black/40" />
           <div className="relative bg-white rounded-t-2xl w-full max-w-lg mx-auto p-6 pb-10" onClick={e => e.stopPropagation()}>
             <p className="font-semibold text-stone-900 mb-3">Household name</p>
@@ -82,6 +89,39 @@ export default function Settings() {
                 setSection(null)
               }}
               disabled={!editName.trim() || saving}
+              className="w-full bg-orange-500 disabled:bg-stone-200 text-white font-semibold py-3 rounded-xl"
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {section === 'email' && (
+        <div className="fixed inset-0 z-[60] flex items-end" onClick={() => setSection(null)}>
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative bg-white rounded-t-2xl w-full max-w-lg mx-auto p-6 pb-10" onClick={e => e.stopPropagation()}>
+            <p className="font-semibold text-stone-900 mb-1">Email for dish import</p>
+            <p className="text-xs text-stone-400 mb-4">
+              Forward any recipe link (YouTube, Instagram, website) from this email to{' '}
+              <span className="font-medium text-orange-500">rasoi.recipes@gmail.com</span> — it'll be added to your library automatically.
+            </p>
+            <input
+              type="email"
+              className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-400 mb-4"
+              placeholder="your@email.com"
+              value={editEmail}
+              onChange={e => setEditEmail(e.target.value)}
+            />
+            <button
+              onClick={async () => {
+                setSaving(true)
+                const { data } = await supabase.from('households').update({ registered_email: editEmail.trim() || null }).eq('id', household.id).select().single()
+                if (data) setHousehold(data)
+                setSaving(false)
+                setSection(null)
+              }}
+              disabled={saving}
               className="w-full bg-orange-500 disabled:bg-stone-200 text-white font-semibold py-3 rounded-xl"
             >
               {saving ? 'Saving…' : 'Save'}

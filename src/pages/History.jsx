@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { useApp } from '../contexts/AppContext'
-import { supabase } from '../lib/supabase'
-import LogMealModal from '../components/logging/LogMealModal'
+import LogDishModal from '../components/logging/LogDishModal'
 import { format, isToday, isYesterday } from 'date-fns'
-import { Plus } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 
 const SLOT_EMOJI = { breakfast: '🌅', lunch: '☀️', dinner: '🌙' }
 const HEALTH_BADGE = { light: 'bg-green-100 text-green-700', balanced: 'bg-blue-100 text-blue-700', heavy: 'bg-orange-100 text-orange-700' }
@@ -15,33 +14,33 @@ function formatDate(dateStr) {
   return format(d, 'EEE, d MMM')
 }
 
-export default function History() {
-  const { recentLogs, combos, dishes, household } = useApp()
-  const [logModalOpen, setLogModalOpen] = useState(false)
-  const [selectedCombo, setSelectedCombo] = useState(null)
+function currentSlot() {
+  const h = new Date().getHours()
+  return h < 11 ? 'breakfast' : h < 16 ? 'lunch' : 'dinner'
+}
 
-  // Group logs by date
+export default function History() {
+  const { recentLogs, dishes } = useApp()
+  const [logModalOpen, setLogModalOpen] = useState(false)
+  const [selectedDish, setSelectedDish] = useState(null)
+
   const grouped = recentLogs.reduce((acc, log) => {
     const key = log.meal_date
     if (!acc[key]) acc[key] = []
     acc[key].push(log)
     return acc
   }, {})
-
   const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a))
 
-  // Count health tags for weekly summary
-  const thisWeek = recentLogs.filter(l => {
-    const d = new Date(l.meal_date + 'T00:00:00')
-    return (Date.now() - d.getTime()) < 7 * 86400000
-  })
-
+  // Weekly health summary — use first dish of each log
+  const thisWeek = recentLogs.filter(l =>
+    (Date.now() - new Date(l.meal_date + 'T00:00:00').getTime()) < 7 * 86400000
+  )
   const healthCounts = { light: 0, balanced: 0, heavy: 0 }
   thisWeek.forEach(log => {
-    const combo = combos.find(c => c.id === log.combo_id)
-    if (combo?.health_tag) healthCounts[combo.health_tag]++
+    const dish = log.dish_ids?.[0] && dishes.find(d => d.id === log.dish_ids[0])
+    if (dish?.health_tag) healthCounts[dish.health_tag]++
   })
-
   const totalWeek = thisWeek.length
 
   return (
@@ -57,7 +56,6 @@ export default function History() {
           </button>
         </div>
 
-        {/* Weekly health summary */}
         {totalWeek > 0 && (
           <div className="bg-stone-50 rounded-xl p-3">
             <p className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">This week</p>
@@ -93,41 +91,30 @@ export default function History() {
               </p>
               <div className="space-y-2">
                 {grouped[date]
-                  .sort((a, b) => {
-                    const order = { breakfast: 0, lunch: 1, dinner: 2 }
-                    return order[a.meal_slot] - order[b.meal_slot]
-                  })
+                  .sort((a, b) => ({ breakfast: 0, lunch: 1, dinner: 2 }[a.meal_slot] - { breakfast: 0, lunch: 1, dinner: 2 }[b.meal_slot]))
                   .map(log => {
-                    const combo = combos.find(c => c.id === log.combo_id)
-                    const logDishes = log.dish_ids?.map(did => dishes.find(d => d.id === did)).filter(Boolean)
+                    const logDishes = log.dish_ids?.map(did => dishes.find(d => d.id === did)).filter(Boolean) || []
+                    const primaryDish = logDishes[0]
 
                     return (
                       <div key={log.id} className="flex items-start gap-3 bg-stone-50 rounded-xl p-3">
                         <span className="text-lg mt-0.5">{SLOT_EMOJI[log.meal_slot]}</span>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-stone-800 text-sm">
-                            {combo?.name || logDishes?.map(d => d.name).join(', ') || 'Custom meal'}
+                            {logDishes.length > 0 ? logDishes.map(d => d.name).join(', ') : 'Custom meal'}
                           </p>
-                          {combo && logDishes?.length > 0 && (
-                            <p className="text-xs text-stone-400 mt-0.5 truncate">
-                              {logDishes.map(d => d.name).join(' · ')}
-                            </p>
-                          )}
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-stone-400 capitalize">{log.meal_slot}</span>
-                            {combo?.health_tag && (
-                              <span className={`text-xs px-1.5 py-0.5 rounded-full capitalize ${HEALTH_BADGE[combo.health_tag]}`}>
-                                {combo.health_tag}
+                            {primaryDish?.health_tag && (
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full capitalize ${HEALTH_BADGE[primaryDish.health_tag]}`}>
+                                {primaryDish.health_tag}
                               </span>
-                            )}
-                            {log.mode === 'plan' && (
-                              <span className="text-xs text-stone-400">planned</span>
                             )}
                           </div>
                         </div>
-                        {combo && (
+                        {primaryDish && (
                           <button
-                            onClick={() => setSelectedCombo(combo)}
+                            onClick={() => setSelectedDish(primaryDish)}
                             className="text-xs text-orange-500 font-medium shrink-0"
                           >
                             Cook again
@@ -142,47 +129,51 @@ export default function History() {
         )}
       </div>
 
-      {/* Quick log modal — pick a combo */}
-      {logModalOpen && !selectedCombo && (
-        <QuickLogPicker combos={combos} onSelect={setSelectedCombo} onClose={() => setLogModalOpen(false)} />
+      {logModalOpen && !selectedDish && (
+        <QuickLogPicker dishes={dishes} onSelect={setSelectedDish} onClose={() => setLogModalOpen(false)} />
       )}
 
-      {selectedCombo && (
-        <LogMealModal
-          combo={selectedCombo}
-          mealSlot={(() => { const h = new Date().getHours(); return h < 11 ? 'breakfast' : h < 16 ? 'lunch' : 'dinner' })()}
+      {selectedDish && (
+        <LogDishModal
+          dish={selectedDish}
+          mealSlot={currentSlot()}
           mode="record"
-          onClose={() => { setSelectedCombo(null); setLogModalOpen(false) }}
+          onClose={() => { setSelectedDish(null); setLogModalOpen(false) }}
         />
       )}
     </div>
   )
 }
 
-function QuickLogPicker({ combos, onSelect, onClose }) {
+function QuickLogPicker({ dishes, onSelect, onClose }) {
   const [search, setSearch] = useState('')
-  const filtered = combos.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).slice(0, 20)
+  const filtered = dishes.filter(d => d.name.toLowerCase().includes(search.toLowerCase())).slice(0, 25)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40" />
       <div className="relative bg-white rounded-t-2xl w-full max-w-lg mx-auto max-h-[70vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="px-4 pt-4 pb-2 border-b border-stone-100">
           <p className="font-semibold text-stone-900 mb-3">What did you cook?</p>
-          <input
-            autoFocus
-            className="w-full bg-stone-100 rounded-xl px-3 py-2 text-sm focus:outline-none"
-            placeholder="Search meals…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+          <div className="flex items-center gap-2 bg-stone-100 rounded-xl px-3 py-2">
+            <Search size={15} className="text-stone-400" />
+            <input
+              autoFocus
+              className="flex-1 bg-transparent text-sm focus:outline-none"
+              placeholder="Search dishes…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
         </div>
-        <div className="overflow-y-auto divide-y divide-stone-100">
-          {filtered.map(combo => (
-            <button key={combo.id} onClick={() => onSelect(combo)}
+        <div className="overflow-y-auto divide-y divide-stone-100 pb-8">
+          {filtered.map(dish => (
+            <button key={dish.id} onClick={() => onSelect(dish)}
               className="w-full text-left px-4 py-3 hover:bg-stone-50">
-              <p className="font-medium text-stone-800 text-sm">{combo.name}</p>
-              <p className="text-xs text-stone-400 mt-0.5 truncate">{combo.dishes?.map(d => d.name).join(' · ')}</p>
+              <p className="font-medium text-stone-800 text-sm">{dish.name}</p>
+              {dish.description && (
+                <p className="text-xs text-stone-400 mt-0.5 truncate">{dish.description}</p>
+              )}
             </button>
           ))}
         </div>
