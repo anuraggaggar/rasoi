@@ -110,7 +110,7 @@ export default function Onboarding({ onBack }) {
     try {
       const { data: hh, error: hhErr } = await Promise.race([
         supabase.from('households')
-          .insert({ user_id: user.id, name: householdName.trim(), dietary_profile: dietaryProfile })
+          .insert({ user_id: user.id, name: householdName.trim(), dietary_profile: dietaryProfile, registered_email: user.email })
           .select().single(),
         timeout,
       ])

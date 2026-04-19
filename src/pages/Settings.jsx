@@ -4,11 +4,11 @@ import { supabase } from '../lib/supabase'
 import { ChevronRight, LogOut, RotateCcw, User, Home, Utensils, ArrowLeftRight, Mail } from 'lucide-react'
 
 export default function Settings() {
-  const { household, households, familyMembers, signOut, deletedItems, setDeletedItems, refreshHouseholdData, setHousehold, setFamilyMembers } = useApp()
+  const { user, household, households, familyMembers, signOut, deletedItems, setDeletedItems, refreshHouseholdData, setHousehold, setFamilyMembers } = useApp()
   const [section, setSection] = useState(null) // 'household' | 'dietary' | 'members' | 'deleted' | 'email'
   const [saving, setSaving] = useState(false)
   const [editName, setEditName] = useState(household?.name || '')
-  const [editEmail, setEditEmail] = useState(household?.registered_email || '')
+  const [editEmail, setEditEmail] = useState(household?.registered_email || user?.email || '')
   const [dietaryProfile, setDietaryProfile] = useState(household?.dietary_profile || {})
 
   if (section === 'dietary') {
@@ -66,7 +66,7 @@ export default function Settings() {
           icon={Mail}
           label="Email for dish import"
           value={household?.registered_email || 'Not set'}
-          onClick={() => { setEditEmail(household?.registered_email || ''); setSection('email') }}
+          onClick={() => { setEditEmail(household?.registered_email || user?.email || ''); setSection('email') }}
         />
       </div>
 
