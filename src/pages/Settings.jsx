@@ -104,7 +104,7 @@ export default function Settings() {
             <p className="font-semibold text-stone-900 mb-1">Email for dish import</p>
             <p className="text-xs text-stone-400 mb-4">
               Forward any recipe link (YouTube, Instagram, website) from this email to{' '}
-              <span className="font-medium text-orange-500">rasoi.recipes@gmail.com</span> — it'll be added to your library automatically.
+              <span className="font-medium text-orange-500">rasoi.app.share@gmail.com</span> — it'll be added to your library automatically.
             </p>
             <input
               type="email"
